@@ -141,6 +141,12 @@ static void wcd_program_btn_threshold(const struct wcd_mbhc *mbhc, bool micbias)
 
 	mbhc->mbhc_cb->set_btn_thr(codec, btn_low, btn_high, btn_det->num_btn,
 				   micbias);
+
+	snd_soc_update_bits(codec, 0x153, 0xFC, 0x20);
+	snd_soc_update_bits(codec, 0x154, 0xFC, 0x40);
+	snd_soc_update_bits(codec, 0x155, 0xFC, 0x68);
+	snd_soc_update_bits(codec, 0x156, 0xFC, 0x78);
+	snd_soc_update_bits(codec, 0x157, 0xFC, 0x88);
 }
 
 static void wcd_enable_curr_micbias(const struct wcd_mbhc *mbhc,
@@ -257,8 +263,6 @@ static int wcd_event_notify(struct notifier_block *self, unsigned long val,
 			  mbhc->is_hs_recording);
 		break;
 	case WCD_EVENT_POST_MICBIAS_2_ON:
-		if (!mbhc->micbias_enable)
-			goto out_micb_en;
 		if (mbhc->mbhc_cb->mbhc_common_micb_ctrl) {
 			mbhc->mbhc_cb->mbhc_common_micb_ctrl(codec,
 					MBHC_COMMON_MICB_PRECHARGE,
@@ -278,7 +282,7 @@ static int wcd_event_notify(struct notifier_block *self, unsigned long val,
 			mbhc->mbhc_cb->mbhc_common_micb_ctrl(codec,
 					MBHC_COMMON_MICB_PRECHARGE,
 					false);
-out_micb_en:
+
 		/* Disable current source if micbias enabled */
 		if (mbhc->mbhc_cb->mbhc_micbias_control) {
 			WCD_MBHC_REG_READ(WCD_MBHC_FSM_EN, fsm_en);
@@ -2116,6 +2120,7 @@ int wcd_mbhc_init(struct wcd_mbhc *mbhc, struct snd_soc_codec *codec,
 	mbhc->is_extn_cable = false;
 	mbhc->hph_type = WCD_MBHC_HPH_NONE;
 	mbhc->wcd_mbhc_regs = wcd_mbhc_regs;
+	mbhc->jiffies_atreport = jiffies;
 
 	if (mbhc->intr_ids == NULL) {
 		pr_err("%s: Interrupt mapping not provided\n", __func__);
@@ -2156,6 +2161,18 @@ int wcd_mbhc_init(struct wcd_mbhc *mbhc, struct snd_soc_codec *codec,
 		ret = snd_jack_set_key(mbhc->button_jack.jack,
 				       SND_JACK_BTN_0,
 				       KEY_MEDIA);
+		ret = snd_jack_set_key(mbhc->button_jack.jack,
+				       SND_JACK_BTN_1,
+				       KEY_VOLUMEUP);
+		ret = snd_jack_set_key(mbhc->button_jack.jack,
+				       SND_JACK_BTN_2,
+				       KEY_VOLUMEDOWN);
+		ret = snd_jack_set_key(mbhc->button_jack.jack,
+				       SND_JACK_BTN_3,
+				       KEY_VOLUMEDOWN);
+		ret = snd_jack_set_key(mbhc->button_jack.jack,
+				       SND_JACK_BTN_4,
+				       KEY_VOLUMEDOWN);
 		if (ret) {
 			pr_err("%s: Failed to set code for btn-0\n",
 				__func__);
